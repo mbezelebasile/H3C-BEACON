@@ -1,0 +1,30 @@
+{
+  "algorithm": "H3C",
+  "environment": "academy_3_vs_1_with_keeper",
+  "final_eval_reward": 3.342668056488037,
+  "final_eval_std": 2.384185791015625e-07,
+  "best_eval_reward": 3.342668056488037,
+  "final_win_rate": 1.0,
+  "total_time": 1191.2013578414917,
+  "metrics": {
+    "algorithm": "H3C",
+    "environment": "academy_3_vs_1_with_keeper",
+    "n_evaluations": 2,
+    "stability": {},
+    "convergence": {},
+    "learning_curve": {
+      "steps": [
+        0,
+        100096
+      ],
+      "rewards": [
+        -0.3977894186973572,
+        3.342668056488037
+      ],
+      "stds": [
+        0.0013333320384845138,
+        2.384185791015625e-07
+      ]
+    }
+  }
+}

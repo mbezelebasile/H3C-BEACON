@@ -1,0 +1,23 @@
+# H3C-BEACON Dependencies
+# =======================
+
+# Core ML
+torch>=2.0.0
+numpy>=1.21.0
+
+# Multi-Agent Environments
+pettingzoo[mpe]>=1.24.0
+gymnasium>=0.29.0
+
+# Visualization
+matplotlib>=3.5.0
+seaborn>=0.12.0
+
+# Utilities
+pyyaml>=6.0
+tqdm>=4.64.0
+tensorboard>=2.12.0
+
+# Optional: For documentation
+# sphinx>=5.0.0
+# sphinx-rtd-theme>=1.0.0
