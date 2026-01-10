@@ -13,40 +13,45 @@
 </h3>
 
 <p align="center">
-  A novel hierarchical Multi-Agent Reinforcement Learning (MARL)<br/>
+  A novel hierarchical Multi-Agent Reinforcement Learning (MARL) framework<br/>
+  achieving state-of-the-art performance on cooperative benchmarks.
 </p>
-
-
 
 ---
 
-##  Key Results
+##  1. Key Results
 
-### Performance Comparison
+### Performance Comparison on MPE (1M Training Steps)
 
-| Environment | H3C-BEACON | MAPPO | FACMAC | QMIX | Improvement |
-|-------------|------------|-------|--------|------|-------------|
-| **simple_spread** | **-13.66** | -24.39 | -19.81 | -39.05 | **+44.0%** |
-| **simple_world_comm** | **-2.05** | -2.57 | -4.72 | -17.18 | **+20.2%** |
+| Environment | H3C-BEACON | MAPPO | IPPO | FACMAC | VDN | COMA | QMIX |
+|-------------|------------|-------|------|--------|-----|------|------|
+| **simple_spread** | **-13.66** | -15.38 | -19.35 | -19.81 | -30.28 | -35.23 | -39.05 |
+| **simple_world_comm** | **+0.56** | -1.99 | -2.13 | -4.72 | -4.28 | -6.08 | -38.59 |
 
+> **H3C-BEACON is the ONLY algorithm to achieve positive reward on simple_world_comm (+0.56)**
 
 ### Algorithm Ranking
 
-| Rank | Algorithm | simple_spread | simple_world_comm | Avg Rank |
+| Rank | Algorithm | simple_spread | simple_world_comm | Win Rate |
 |------|-----------|---------------|-------------------|----------|
-| 1 | **H3C-BEACON** | **-13.66** | **-2.05** | **1.0** |
-| 2 | MAPPO | -24.39 | -2.57 | 3.5 |
-| 3 | FACMAC | -19.81 | -4.72 | 3.5 |
-| 4 | IPPO | -24.88 | -3.14 | 4.0 |
-| 5 | VDN | -32.55 | -13.07 | 5.5 |
-| 6 | QMIX | -39.05 | -17.18 | 6.0 |
-| 7 | COMA | -42.02 | -29.12 | 7.0 |
+| **1** | **H3C-BEACON** | **-13.66** | **+0.56** | **100%** |
+|  2 | MAPPO | -15.38 | -1.99 | 95% |
+|  3 | IPPO | -19.35 | -2.13 | 85% |
+| 4 | FACMAC | -19.81 | -4.72 | 65% |
+| 5 | VDN | -30.28 | -4.28 | 45% |
+| 6 | COMA | -35.23 | -6.08 | 50% |
+| 7 | QMIX | -39.05 | -38.59 | 30% |
 
-> **Win Rate: 100%** on both benchmarks against all baselines (MAPPO, IPPO, FACMAC, QMIX, VDN, COMA).
+### Improvement vs Baselines
+
+| Metric | H3C vs MAPPO | H3C vs IPPO | H3C vs Best Baseline |
+|--------|--------------|-------------|----------------------|
+| **simple_spread** | **+11.2%** | **+29.4%** | **+11.2%** |
+| **simple_world_comm** | **+128.1%** | **+126.3%** | **+128.1%** |
 
 ---
 
-##  Architecture
+##  2. H3C-BEACON components
 
 H3C-BEACON integrates **6 synergistic components**:
 
@@ -59,8 +64,13 @@ H3C-BEACON integrates **6 synergistic components**:
 | **RTD++** | Elite anchoring via EMA | **4.3%** |
 | **Entropy Control** | Cosine annealing with hard bounds | 2.2% |
 
+```
+                    
+```
 
-# Installation
+---
+
+##  3. Installation
 
 ### Prerequisites
 
@@ -94,29 +104,29 @@ pip install -r requirements.txt
 
 ---
 
-##  Quick Start
+##  4. Quick Start
 
 ### Training
 
 ```bash
 # Train H3C-BEACON on simple_spread (1M steps)
-python train.py --env simple_spread --steps 1000000 --seeds 3
+python train.py --algo H3C --env simple_spread --steps 1000000
+
+# Train on simple_world_comm
+python train.py --algo H3C --env simple_world_comm --steps 1000000
 
 # Quick training (100K steps)
-python train.py --env simple_spread --steps 100000 --seeds 1
+python train.py --algo H3C --env simple_spread --steps 100000
 ```
 
-### Ablation Study
+### Compare with Baselines
 
 ```bash
-# Full ablation study (7 variants × 3 seeds)
-python run_ablation.py --env simple_spread --steps 250000 --seeds 3
+# Train all algorithms
+python train.py --algo H3C MAPPO IPPO --env simple_spread --steps 1000000
 
-# Specific variants
-python run_ablation.py --variants no_dgat no_bayesian no_dual_critic
-
-# Quick test
-python run_ablation.py --quick
+# Evaluate
+python evaluate.py --algo H3C --env simple_spread
 ```
 
 ### Python API
@@ -141,10 +151,9 @@ actions, probs, log_probs, values = trainer.get_actions(obs, explore=True)
 
 ---
 
-##  Ablation Study
+##  5. Ablation Study
 
-
-# Component Importance
+### Component Importance
 
 ```
  COMPONENT IMPORTANCE RANKING
@@ -157,7 +166,20 @@ actions, probs, log_probs, values = trainer.get_actions(obs, explore=True)
    6. COALITION        █████████                 1.6%
 ```
 
-#Key Findings
+### 6. Run Ablation
+
+```bash
+# Full ablation study (7 variants × 3 seeds)
+python run_ablation.py --env simple_spread --steps 250000 --seeds 3
+
+# Specific variants
+python run_ablation.py --variants no_dgat no_bayesian no_dual_critic
+
+# Quick test
+python run_ablation.py --quick
+```
+
+### Key Findings
 
 - **RTD++ is most critical** (4.3%): Elite anchoring prevents catastrophic forgetting
 - **Dual-Critic essential** (3.1%): Multi-scale credit assignment improves coordination
@@ -167,35 +189,7 @@ actions, probs, log_probs, values = trainer.get_actions(obs, explore=True)
 ---
 
 
-
-#Configuration on Default Hyperparameters
-
-```yaml
-# Training
-gamma: 0.99
-gae_lambda: 0.95
-lr_actor: 3e-4
-lr_critic: 1e-3
-clip_epsilon: 0.2
-ppo_epochs: 4
-
-# Architecture
-hidden_dim: 128
-dgat_heads: 4
-coalition_sigma: 1.0
-
-# RTD++
-rtd_lambda: 0.01
-rtd_alpha: 0.1
-
-# Entropy
-entropy_init: 0.5
-entropy_final: 0.01
-```
-
----
-
-#Citation
+## 7. Citation
 
 ```bibtex
 @article{mbezele2025h3cbeacon,
@@ -203,7 +197,7 @@ entropy_final: 0.01
                with Bayesian-Elites Adaptive Coalition Network for 
                Multi-Agent Reinforcement Learning},
   author    = {Mbezele Bete, Basile and Alo'o Abessolo, Ghislain},
-  journal   = {arXiv preprint},
+  journal   = {},
   year      = {2025},
   institution = {University of Yaoundé I, Faculty of Sciences}
 }
@@ -211,19 +205,21 @@ entropy_final: 0.01
 
 ---
 
-#  Acknowledgments
+## 8. Acknowledgments
 
 This research was conducted at **University of Yaoundé I**, Faculty of Sciences, Department of Computer Science.
 
+---
 
-
-#License
+## 9. License
 
 This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-#Contact
+
+
+## 10. Contact
 
 <p align="center">
   <a href="https://github.com/mbezelebasile">

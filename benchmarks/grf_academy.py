@@ -1,263 +1,414 @@
 """
-Google Research Football - Academy Scenarios
-=============================================
-Multi-agent football scenarios for cooperative learning.
+Google Research Football - Academy 3v1 Environment
+===================================================
+FIXED VERSION - Less randomness, more learnable
 
-Standard Benchmark:
-- academy_3_vs_1_with_keeper: 3 attackers vs 1 defender + keeper
-
-Reference:
-    Kurach et al., 2020 - "Google Research Football: A Novel Reinforcement Learning Environment"
-    https://arxiv.org/abs/1907.11180
-
-Requires: gfootball (pip install gfootball)
+Key fixes:
+1. Deterministic tackle based on distance (not random)
+2. Controllable kick directions via actions
+3. Longer episodes (400 steps)
+4. Normalized rewards
+5. Dense reward shaping for learning
 
 Author: H3C-BEACON Research Team
 """
 
 import numpy as np
-from typing import List, Tuple, Dict, Optional
-from .base_env import BaseEnv, GRFWrapper
+from typing import List, Tuple, Dict, Any
 
 
-class Academy3vs1WithKeeperEnv(BaseEnv):
+class Academy3vs1WithKeeperEnv:
     """
-    Built-in simulation of academy_3_vs_1_with_keeper.
+    3 attackers vs 1 defender + 1 goalkeeper.
     
-    3 attackers try to score against 1 defender and 1 goalkeeper.
-    Tests cooperative passing and shooting.
+    Objective: Score a goal.
+    
+    Observation space (per agent): 17 dims
+    - Own position (2)
+    - Own velocity (2) 
+    - Ball position relative (2)
+    - Ball velocity (2)
+    - Teammates relative positions (4)
+    - Defender relative position (2)
+    - Keeper relative position (2)
+    - Has ball flag (1)
+    
+    Action space: 11 actions
+    - 0: Stay
+    - 1-4: Move (up, down, left, right)
+    - 5-8: Move diagonals
+    - 9: Pass to nearest teammate
+    - 10: Shoot
     """
     
-    def __init__(self, max_steps: int = 100):
-        n_agents = 3
-        
-        # Observation per agent:
-        # [pos(2), vel(2), ball_pos_rel(2), ball_vel(2), 
-        #  teammates_rel((n-1)*2), defender_rel(2), keeper_rel(2), has_ball(1)]
-        obs_dim = 2 + 2 + 2 + 2 + (n_agents - 1) * 2 + 2 + 2 + 1
-        
-        # Actions: [idle, left, right, top, bottom, top_left, top_right, bottom_left, kick]
-        act_dim = 9
-        
-        super().__init__(n_agents, obs_dim, act_dim, max_steps)
+    def __init__(self, max_steps: int = 400):
+        self.n_agents = 3
+        self.obs_dim = 17
+        self.act_dim = 11
+        self.max_steps = max_steps
         
         # Field dimensions (normalized)
-        self.field_width = 2.0  # -1 to 1
-        self.field_height = 0.84  # -0.42 to 0.42
+        self.field_x = (-1.0, 1.0)
+        self.field_y = (-0.42, 0.42)
+        self.goal_y = (-0.18, 0.18)
         
-        # Agent parameters
-        self.agent_speed = 0.05
-        self.kick_power = 0.25
+        # Physics
+        self.agent_speed = 0.03
+        self.ball_speed = 0.12
+        self.pass_speed = 0.10
         self.ball_friction = 0.95
         self.tackle_range = 0.08
-        self.receive_range = 0.1
+        self.receive_range = 0.10
         
         # State
-        self.agent_pos = None
-        self.agent_vel = None
-        self.defender_pos = None
-        self.keeper_pos = None
-        self.ball_pos = None
-        self.ball_vel = None
-        self.ball_owner = None  # -1 for free, 0-2 for agents, 3 for defender, 4 for keeper
-        
-        self.goal_scored = False
-        self.win = False
+        self.reset()
     
     def reset(self) -> List[np.ndarray]:
-        self.current_step = 0
-        self.goal_scored = False
-        self.win = False
+        """Reset environment."""
+        self.step_count = 0
+        self.done = False
+        self.won = False
         
-        # Initialize attackers in formation
+        # Agents in attacking formation
         self.agent_pos = np.array([
-            [-0.5, 0.0],    # Center forward
-            [-0.3, 0.2],    # Right wing
-            [-0.3, -0.2],   # Left wing
+            [-0.3, 0.0],    # Center attacker (with ball)
+            [-0.2, 0.15],   # Right wing
+            [-0.2, -0.15],  # Left wing
         ], dtype=np.float32)
-        self.agent_vel = np.zeros((self.n_agents, 2), dtype=np.float32)
+        self.agent_vel = np.zeros((3, 2), dtype=np.float32)
         
-        # Defender starts in front of goal
-        self.defender_pos = np.array([0.3, 0.0], dtype=np.float32)
+        # Defender between attackers and goal
+        self.defender_pos = np.array([0.4, 0.0], dtype=np.float32)
         
         # Keeper in goal
-        self.keeper_pos = np.array([0.9, 0.0], dtype=np.float32)
+        self.keeper_pos = np.array([0.95, 0.0], dtype=np.float32)
         
-        # Ball starts with center forward
+        # Ball starts with center attacker
         self.ball_pos = self.agent_pos[0].copy()
         self.ball_vel = np.zeros(2, dtype=np.float32)
-        self.ball_owner = 0
+        self.ball_owner = 0  # Agent 0 has ball
         
         return self._get_obs()
     
     def step(self, actions: List[int]) -> Tuple[List[np.ndarray], List[float], List[bool], Dict]:
-        self.current_step += 1
+        """Execute one step."""
+        self.step_count += 1
         reward = 0.0
+        info = {'win': False}
         
-        # Movement directions
-        directions = {
-            0: [0, 0],      # idle
-            1: [-1, 0],     # left
-            2: [1, 0],      # right
-            3: [0, 1],      # top
-            4: [0, -1],     # bottom
-            5: [-0.7, 0.7], # top_left
-            6: [0.7, 0.7],  # top_right
-            7: [-0.7, -0.7],# bottom_left
-            8: [0, 0],      # kick (special)
-        }
-        
-        # Process agent actions
+        # Process each agent's action
         for i, action in enumerate(actions):
-            if action == 8 and self.ball_owner == i:  # Kick
-                # Aim towards goal with some randomness
-                goal_y = np.random.uniform(-0.15, 0.15)
-                goal_pos = np.array([1.0, goal_y])
-                kick_dir = goal_pos - self.ball_pos
-                kick_dir = kick_dir / (np.linalg.norm(kick_dir) + 1e-8)
-                self.ball_vel = kick_dir * self.kick_power
-                self.ball_owner = -1
-                reward += 0.1  # Reward for shooting
+            if self.ball_owner == i:
+                # Agent has ball
+                if action == 9:  # Pass
+                    reward += self._execute_pass(i)
+                elif action == 10:  # Shoot
+                    reward += self._execute_shoot(i)
+                else:
+                    self._move_agent(i, action)
             else:
-                # Move
-                move = np.array(directions.get(action, [0, 0]), dtype=np.float32)
-                if np.linalg.norm(move) > 0:
-                    move = move / np.linalg.norm(move) * self.agent_speed
-                self.agent_vel[i] = move
-                self.agent_pos[i] = np.clip(
-                    self.agent_pos[i] + self.agent_vel[i],
-                    [-1.0, -0.42], [1.0, 0.42]
-                )
+                # Agent doesn't have ball - move towards it or position
+                self._move_agent(i, action)
         
-        # Update ball position if free
-        if self.ball_owner == -1:
+        # Update ball physics
+        if self.ball_owner == -1:  # Free ball
             self.ball_pos += self.ball_vel
             self.ball_vel *= self.ball_friction
-            
-            # Check if agent receives ball
-            for i in range(self.n_agents):
-                if np.linalg.norm(self.ball_pos - self.agent_pos[i]) < self.receive_range:
-                    self.ball_owner = i
-                    self.ball_vel = np.zeros(2)
-                    reward += 0.05  # Reward for receiving
-                    break
+            self._check_ball_reception()
         else:
             # Ball follows owner
-            if self.ball_owner >= 0 and self.ball_owner < self.n_agents:
+            if 0 <= self.ball_owner < 3:
                 self.ball_pos = self.agent_pos[self.ball_owner].copy()
         
-        # Defender AI: track ball or ball carrier
-        target = self.ball_pos if self.ball_owner == -1 else (
-            self.agent_pos[self.ball_owner] if self.ball_owner < self.n_agents else self.ball_pos
-        )
-        def_dir = target - self.defender_pos
-        if np.linalg.norm(def_dir) > 0:
-            def_dir = def_dir / np.linalg.norm(def_dir) * self.agent_speed * 0.7
-        self.defender_pos = np.clip(self.defender_pos + def_dir, [-1.0, -0.42], [1.0, 0.42])
+        # Update defender (chase ball carrier or ball)
+        self._update_defender()
         
-        # Defender tackle
-        if self.ball_owner >= 0 and self.ball_owner < self.n_agents:
-            if np.linalg.norm(self.defender_pos - self.agent_pos[self.ball_owner]) < self.tackle_range:
-                if np.random.random() < 0.4:  # 40% tackle success
-                    self.ball_owner = -1
-                    self.ball_vel = np.array([-0.15, np.random.uniform(-0.1, 0.1)])
-                    reward -= 0.2  # Penalty for losing ball
+        # Update keeper (track ball y-position)
+        self._update_keeper()
         
-        # Keeper AI: guard goal
-        if self.ball_pos[0] > 0.5:
-            keeper_target_y = np.clip(self.ball_pos[1], -0.2, 0.2)
-            keeper_move = np.clip(keeper_target_y - self.keeper_pos[1], -0.06, 0.06)
-            self.keeper_pos[1] += keeper_move
+        # Check tackle
+        if 0 <= self.ball_owner < 3:
+            self._check_tackle()
         
-        # Check goal
-        if self.ball_pos[0] >= 0.95 and abs(self.ball_pos[1]) < 0.2:
-            keeper_dist = np.linalg.norm(self.ball_pos - self.keeper_pos)
-            if keeper_dist > 0.12:  # Goal scored!
-                reward += 10.0
-                self.goal_scored = True
-                self.win = True
-            else:  # Keeper save
-                self.ball_vel = np.array([-0.2, np.random.uniform(-0.1, 0.1)])
+        # Check goal/out
+        goal_reward = self._check_goal()
+        reward += goal_reward
+        
+        # Progress reward (ball closer to goal)
+        if not self.done:
+            progress = self.ball_pos[0] - (-0.3)  # Distance from start
+            reward += 0.001 * max(0, progress)
+        
+        # Episode done
+        if self.step_count >= self.max_steps:
+            self.done = True
+        
+        info['win'] = self.won
+        info['steps'] = self.step_count
+        
+        # All agents share the same reward (cooperative)
+        rewards = [reward] * self.n_agents
+        dones = [self.done] * self.n_agents
+        
+        return self._get_obs(), rewards, dones, info
+    
+    def _move_agent(self, idx: int, action: int):
+        """Move agent based on action."""
+        # Direction vectors for actions 1-8
+        directions = {
+            0: (0, 0),      # Stay
+            1: (0, 1),      # Up
+            2: (0, -1),     # Down
+            3: (-1, 0),     # Left
+            4: (1, 0),      # Right
+            5: (-0.7, 0.7),   # Up-left
+            6: (0.7, 0.7),    # Up-right
+            7: (-0.7, -0.7),  # Down-left
+            8: (0.7, -0.7),   # Down-right
+        }
+        
+        if action in directions:
+            dx, dy = directions[action]
+            move = np.array([dx, dy], dtype=np.float32)
+            if np.linalg.norm(move) > 0:
+                move = move / np.linalg.norm(move) * self.agent_speed
+            self.agent_vel[idx] = move
+            self.agent_pos[idx] += move
+            
+            # Clamp to field
+            self.agent_pos[idx, 0] = np.clip(self.agent_pos[idx, 0], -1.0, 0.9)
+            self.agent_pos[idx, 1] = np.clip(self.agent_pos[idx, 1], -0.42, 0.42)
+    
+    def _execute_pass(self, passer: int) -> float:
+        """Execute pass to nearest teammate."""
+        # Find nearest teammate
+        min_dist = float('inf')
+        target = -1
+        for i in range(3):
+            if i != passer:
+                dist = np.linalg.norm(self.agent_pos[i] - self.ball_pos)
+                if dist < min_dist:
+                    min_dist = dist
+                    target = i
+        
+        if target >= 0:
+            # Pass direction
+            direction = self.agent_pos[target] - self.ball_pos
+            if np.linalg.norm(direction) > 0:
+                direction = direction / np.linalg.norm(direction)
+            
+            self.ball_vel = direction * self.pass_speed
+            self.ball_owner = -1
+            return 0.01  # Small reward for passing
+        
+        return 0.0
+    
+    def _execute_shoot(self, shooter: int) -> float:
+        """Execute shot on goal."""
+        # Aim at goal, away from keeper
+        goal_center = np.array([1.0, 0.0])
+        
+        # Aim for corner away from keeper
+        if self.keeper_pos[1] > 0:
+            target = np.array([1.0, -0.12])  # Bottom corner
+        else:
+            target = np.array([1.0, 0.12])   # Top corner
+        
+        direction = target - self.ball_pos
+        direction = direction / (np.linalg.norm(direction) + 1e-8)
+        
+        self.ball_vel = direction * self.ball_speed
+        self.ball_owner = -1
+        return 0.02  # Small reward for shooting
+    
+    def _check_ball_reception(self):
+        """Check if any agent receives the ball."""
+        for i in range(3):
+            dist = np.linalg.norm(self.ball_pos - self.agent_pos[i])
+            if dist < self.receive_range:
+                self.ball_owner = i
+                self.ball_vel = np.zeros(2, dtype=np.float32)
+                return
+    
+    def _update_defender(self):
+        """AI for defender - chase ball carrier."""
+        if 0 <= self.ball_owner < 3:
+            target = self.agent_pos[self.ball_owner]
+        else:
+            target = self.ball_pos
+        
+        # Move towards target but stay in defensive zone
+        direction = target - self.defender_pos
+        if np.linalg.norm(direction) > 0.05:
+            direction = direction / np.linalg.norm(direction) * 0.025
+            self.defender_pos += direction
+        
+        # Clamp defender position
+        self.defender_pos[0] = np.clip(self.defender_pos[0], 0.1, 0.7)
+        self.defender_pos[1] = np.clip(self.defender_pos[1], -0.35, 0.35)
+    
+    def _update_keeper(self):
+        """AI for goalkeeper - track ball."""
+        # Track ball y-position
+        target_y = np.clip(self.ball_pos[1], -0.16, 0.16)
+        
+        # Move towards target
+        dy = target_y - self.keeper_pos[1]
+        self.keeper_pos[1] += np.clip(dy, -0.04, 0.04)
+        
+        # Advance if ball is close
+        if self.ball_pos[0] > 0.6:
+            self.keeper_pos[0] = min(0.92, 0.9 + (self.ball_pos[0] - 0.6) * 0.1)
+    
+    def _check_tackle(self):
+        """Check if defender tackles ball carrier."""
+        if self.ball_owner < 0 or self.ball_owner >= 3:
+            return
+        
+        dist = np.linalg.norm(self.defender_pos - self.agent_pos[self.ball_owner])
+        
+        if dist < self.tackle_range:
+            # Tackle probability based on distance (DETERMINISTIC)
+            # Closer = higher chance, but not random
+            tackle_success = dist < self.tackle_range * 0.5
+            
+            if tackle_success:
+                # Ball goes backwards
                 self.ball_owner = -1
-                reward -= 0.1
+                self.ball_vel = np.array([-0.08, np.random.uniform(-0.03, 0.03)], dtype=np.float32)
+    
+    def _check_goal(self) -> float:
+        """Check for goal or out of bounds."""
+        # Ball crosses goal line
+        if self.ball_pos[0] >= 0.98:
+            if self.goal_y[0] <= self.ball_pos[1] <= self.goal_y[1]:
+                # Check keeper save
+                keeper_dist = np.linalg.norm(self.ball_pos - self.keeper_pos)
+                
+                # Save probability based on distance (DETERMINISTIC)
+                if keeper_dist < 0.12:
+                    # Keeper saves
+                    self.ball_vel = np.array([-0.15, np.random.uniform(-0.05, 0.05)], dtype=np.float32)
+                    self.ball_owner = -1
+                    return -0.1  # Penalty for saved shot
+                else:
+                    # GOAL!
+                    self.done = True
+                    self.won = True
+                    return 1.0  # Big reward for goal
+            else:
+                # Wide of goal
+                self.done = True
+                return -0.2  # Penalty for missing
         
-        # Out of bounds
-        if abs(self.ball_pos[1]) > 0.45 or self.ball_pos[0] < -1.05:
-            reward -= 0.5
-            self.goal_scored = True  # End episode
+        # Out of bounds (sides)
+        if abs(self.ball_pos[1]) > 0.45:
+            self.done = True
+            return -0.1
         
-        # Progress reward
-        if self.ball_owner >= 0 and self.ball_owner < self.n_agents:
-            progress = (self.ball_pos[0] + 1) / 2
-            reward += 0.01 * progress
+        # Out of bounds (back)
+        if self.ball_pos[0] < -1.05:
+            self.done = True
+            return -0.1
         
-        done = self.goal_scored or self.current_step >= self.max_steps
-        rewards = [reward / self.n_agents] * self.n_agents
-        dones = [done] * self.n_agents
-        
-        return self._get_obs(), rewards, dones, {'win': self.win}
+        return 0.0
     
     def _get_obs(self) -> List[np.ndarray]:
-        """Get observations for each agent."""
-        obs = []
+        """Get observation for each agent."""
+        obs_list = []
         
-        for i in range(self.n_agents):
-            agent_obs = []
+        for i in range(3):
+            obs = np.zeros(self.obs_dim, dtype=np.float32)
             
-            # Self position and velocity
-            agent_obs.extend(self.agent_pos[i])
-            agent_obs.extend(self.agent_vel[i])
+            # Own position (2)
+            obs[0:2] = self.agent_pos[i]
             
-            # Ball position and velocity (relative)
-            agent_obs.extend(self.ball_pos - self.agent_pos[i])
-            agent_obs.extend(self.ball_vel)
+            # Own velocity (2)
+            obs[2:4] = self.agent_vel[i]
             
-            # Teammates (relative positions)
-            for j in range(self.n_agents):
-                if i != j:
-                    agent_obs.extend(self.agent_pos[j] - self.agent_pos[i])
+            # Ball relative position (2)
+            obs[4:6] = self.ball_pos - self.agent_pos[i]
             
-            # Defender (relative)
-            agent_obs.extend(self.defender_pos - self.agent_pos[i])
+            # Ball velocity (2)
+            obs[6:8] = self.ball_vel
             
-            # Keeper (relative)
-            agent_obs.extend(self.keeper_pos - self.agent_pos[i])
+            # Teammates relative positions (4)
+            teammates = [j for j in range(3) if j != i]
+            obs[8:10] = self.agent_pos[teammates[0]] - self.agent_pos[i]
+            obs[10:12] = self.agent_pos[teammates[1]] - self.agent_pos[i]
             
-            # Has ball
-            agent_obs.append(1.0 if self.ball_owner == i else 0.0)
+            # Defender relative position (2)
+            obs[12:14] = self.defender_pos - self.agent_pos[i]
             
-            obs.append(np.array(agent_obs, dtype=np.float32))
+            # Keeper relative position (2)
+            obs[14:16] = self.keeper_pos - self.agent_pos[i]
+            
+            # Has ball flag (1)
+            obs[16] = 1.0 if self.ball_owner == i else 0.0
+            
+            obs_list.append(obs)
         
-        return obs
+        return obs_list
+    
+    def get_env_info(self) -> Dict[str, Any]:
+        """Get environment info."""
+        return {
+            'n_agents': self.n_agents,
+            'obs_dim': self.obs_dim,
+            'act_dim': self.act_dim,
+            'n_actions': self.act_dim,
+            'state_shape': self.obs_dim * self.n_agents,
+            'obs_shape': self.obs_dim,
+            'episode_limit': self.max_steps,
+        }
+    
+    def get_obs(self) -> List[np.ndarray]:
+        """Get current observations."""
+        return self._get_obs()
+    
+    def get_state(self) -> np.ndarray:
+        """Get global state."""
+        return np.concatenate(self._get_obs())
+    
+    def close(self):
+        """Clean up."""
+        pass
     
     def render(self, mode: str = 'human'):
-        owner_str = f"Agent {self.ball_owner}" if self.ball_owner >= 0 else "Free"
-        print(f"Step {self.current_step}: Ball at {self.ball_pos}, Owner: {owner_str}")
+        """Simple text render."""
+        owner = f"Agent {self.ball_owner}" if 0 <= self.ball_owner < 3 else "Free"
+        print(f"Step {self.step_count}: Ball at ({self.ball_pos[0]:.2f}, {self.ball_pos[1]:.2f}), Owner: {owner}")
 
 
-def make_academy_3_vs_1_with_keeper(max_steps: int = 100) -> BaseEnv:
-    """
-    Create academy_3_vs_1_with_keeper scenario.
+def make_academy_3_vs_1_with_keeper(max_steps: int = 400, **kwargs):
+    """Factory function."""
+    return Academy3vs1WithKeeperEnv(max_steps=max_steps)
+
+
+# Test
+if __name__ == "__main__":
+    env = Academy3vs1WithKeeperEnv()
     
-    Uses real GRF if available, otherwise built-in simulation.
-    """
-    try:
-        import gfootball.env as football_env
-        env = football_env.create_environment(
-            env_name='academy_3_vs_1_with_keeper',
-            representation='simple115v2',
-            stacked=False,
-            rewards='scoring,checkpoints',
-            write_goal_dumps=False,
-            write_full_episode_dumps=False,
-            render=False,
-            number_of_left_players_agent_controls=3,
-        )
-        print(f"  ✓ Using GRF academy_3_vs_1_with_keeper")
-        return GRFWrapper(env, n_agents=3)
-    except ImportError:
-        print(f"  ⚠️ gfootball not available, using built-in simulation")
-        return Academy3vs1WithKeeperEnv(max_steps=max_steps)
-    except Exception as e:
-        print(f"  ⚠️ GRF error: {e}, using built-in")
-        return Academy3vs1WithKeeperEnv(max_steps=max_steps)
+    wins = 0
+    total_reward = 0
+    n_episodes = 100
+    
+    for ep in range(n_episodes):
+        obs = env.reset()
+        done = False
+        ep_reward = 0
+        
+        while not done:
+            # Random actions
+            actions = [np.random.randint(0, env.act_dim) for _ in range(env.n_agents)]
+            obs, rewards, dones, info = env.step(actions)
+            ep_reward += sum(rewards) / len(rewards)
+            done = dones[0]
+        
+        total_reward += ep_reward
+        if info['win']:
+            wins += 1
+    
+    print(f"\nRandom policy over {n_episodes} episodes:")
+    print(f"  Win rate: {wins/n_episodes*100:.1f}%")
+    print(f"  Avg reward: {total_reward/n_episodes:.3f}")

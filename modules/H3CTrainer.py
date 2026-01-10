@@ -1,7 +1,6 @@
 """
 H3CTrainer.py - H3C-BEACON:
 
-
 1. SMART RECOVERY with Patience
    - Don't recover on single bad eval
    - Require 3 consecutive drops before recovery

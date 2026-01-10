@@ -2,7 +2,6 @@
 """
 H3C-BEACON: Training Script
 ============================
-
 Compatible with H3CTrainer v1.0 (DGAT-BC)
 
 Usage:
