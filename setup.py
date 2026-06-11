@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-H3C-BEACON: Hierarchical Hybrid Heterogeneous Control with 
-Bayesian-Elite Adaptive COalition Network
+H3C-BEACON: Hierarchical Hybrid Heterogeneous Control with
+Bayesian-Elites Adaptive COalition Network
+
+Submitted to Complex & Intelligent Systems (Springer, 2026).
 
 Installation:
     pip install -e .
@@ -13,20 +15,27 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 with open("requirements.txt", "r", encoding="utf-8") as fh:
-    requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
+    requirements = [
+        line.strip()
+        for line in fh
+        if line.strip() and not line.startswith("#")
+    ]
 
 setup(
     name="h3c-beacon",
-    version="1.0",
-    authors=" Basile BETE MBEZELE, and GHISLAIN ALO'O ABESSOLO",
+    version="2.0.0",
+    author="Basile BETE MBEZELE, Ghislain ALO'O ABESSOLO",
     author_email="mbezelebetebasile@gmail.com",
-    description="Hierarchical Hybrid Heterogeneous Control with Bayesian-Elite Adaptive COalition Network",
+    description=(
+        "H3C-BEACON: Hierarchical Hybrid Heterogeneous Control with "
+        "Bayesian-Elites Adaptive Coalition Network for MARL"
+    ),
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/mbezelebasile/H3C-BEACON",
     packages=find_packages(),
     classifiers=[
-        "Development Status :: 1 - Beta",
+        "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
@@ -45,11 +54,18 @@ setup(
             "black>=22.0.0",
             "flake8>=5.0.0",
         ],
+        "smac": [
+            "smaclite",
+        ],
+        "hanabi": [
+            # hanabi-learning-environment (optional, falls back to built-in)
+        ],
     },
     entry_points={
         "console_scripts": [
-            "h3c-train=train:main",
-            "h3c-ablation=run_ablation:main",
+            "h3c-train=train_mpe_fixed:main",
+            "h3c-smac=train_smac_h3c_fixed:main",
+            "h3c-hanabi=train_hanabi_full:main",
         ],
     },
 )
