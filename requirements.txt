@@ -1,23 +1,22 @@
-# H3C-BEACON Dependencies
-# =======================
+# H3C-BEACON — Python dependencies
+# Tested with Python 3.8–3.11
 
-# Core ML
+# Deep learning
 torch>=2.0.0
 numpy>=1.21.0
 
-# Multi-Agent Environments
-pettingzoo[mpe]>=1.24.0
-gymnasium>=0.29.0
+#  MARL environments 
+gymnasium>=0.26.0
+pettingzoo[mpe]>=1.24.0   # MPE: simple_spread, simple_world_comm
 
-# Visualization
-matplotlib>=3.5.0
-seaborn>=0.12.0
+# SMAClite — lightweight StarCraft Multi-Agent Challenge
+# Install via: pip install git+https://github.com/uoe-agents/smaclite.git
+# or:          pip install smaclite
 
-# Utilities
-pyyaml>=6.0
+#  Scientific computing 
+scipy>=1.9.0               # t-distribution for 95% CI
+matplotlib>=3.5.0          # figures
+pandas>=1.4.0              # result aggregation (optional)
+
+# Utilities 
 tqdm>=4.64.0
-tensorboard>=2.12.0
-
-# Optional: For documentation
-# sphinx>=5.0.0
-# sphinx-rtd-theme>=1.0.0
