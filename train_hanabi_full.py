@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-train_hanabi_full.py  _  H3C-BEACON sur Hanabi 
+train_hanabi_full.py  _  H3C-BEACON on Hanabi 
 ==============================================
 
 USAGE :
@@ -41,13 +41,13 @@ except ImportError:
     try:
         from H3CTrainer_Fixed import H3CTrainerRevised
         H3C_AVAILABLE = True
-        print("✓ H3CTrainer_Fixed charge (racine)")
+        print("✓ H3CTrainer_Fixed charge (root)")
     except ImportError:
-        print("  Note: H3CTrainer_Fixed non disponible")
+        print("  Note: H3CTrainer_Fixed not available")
 
 
 # ══════════════════════════════════════════════════════════════
-# 1. ENVIRONNEMENT HANABI SIMPLIFIÉ CORRECT
+# 1. ENVIRONNEMENT HANABI 
 # ══════════════════════════════════════════════════════════════
 
 class HanabiEnvSimple:
@@ -599,7 +599,7 @@ def evaluate(trainer, env: HanabiWrapper, device,
 
 
 # ══════════════════════════════════════════════════════════════
-# 5. BOUCLE D'ENTRAÎNEMENT
+# 5. loop for training 
 # ══════════════════════════════════════════════════════════════
 
 def train_one(algo: str, variant: str, total_steps: int, seed: int,
@@ -1033,12 +1033,6 @@ def print_summary(all_results: List[Dict], variant: str):
               f"{m_bsc:>5.2f}  {m_pf:>7.1f}%±{ci_pf:.1f}%")
     print(f"{'='*72}")
 
-    # Référence littérature
-    print(f"\n  Références littérature (HLE, 2 joueurs) :")
-    print(f"    Random policy   :  ~3-5 / {max_sc}")
-    print(f"    VDN             :  ~18  / {max_sc}")
-    print(f"    SAD (ICLR 2020) :  ~23  / {max_sc}")
-
 
 # ══════════════════════════════════════════════════════════════
 # MAIN
@@ -1077,7 +1071,7 @@ def main():
     seeds       = args.seeds
 
     print(f"\n{'='*60}")
-    print(f"  H3C-BEACON Hanabi — Version Corrigee (R2.8)")
+    print(f"  H3C-BEACON Hanabi — (R2.8)")
     print(f"  Algos : {algos}  |  Variant : {args.variant}")
     print(f"  Steps : {total_steps:,}  |  Seeds : {seeds}")
     print(f"  Device: {device}")
