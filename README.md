@@ -175,4 +175,4 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 **Ghislain ALO'O ABESSOLO** : ghislainabess@gmail.com   
 
-University of Yaoundé I, Department of Computer Science, Cameroon
+University of Yaoundé I, Faculty of Science, Department of Computer Science, Cameroon
