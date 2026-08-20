@@ -2,7 +2,7 @@
 
 **Hierarchical Hybrid Heterogeneous Control with Bayesian-Elite Adaptive Coalition Network**
 
-Basile BETE MBEZELE · Ghislain ALO'O ABESSOLO  
+Basile BETE MBEZELE and Ghislain ALO'O ABESSOLO  
 University of Yaoundé I — Department of Computer Science, Cameroon  
 *Complex & Intelligent Systems (Springer), 2026*
 
