@@ -93,7 +93,7 @@ class HanabiEnvSimple:
         self.n_actions = (self.hand_size * 2
                           + (self.C + self.R) * (self.n_agents - 1))
 
-        print(f"  ✓ Hanabi-{variant} (implementation propre) | "
+        print(f"  ✓ Hanabi-{variant} (clear implementation) | "
               f"N={self.n_agents} Obs={self.obs_dim} Act={self.n_actions} "
               f"MaxScore={self.max_score}")
 
@@ -111,10 +111,10 @@ class HanabiEnvSimple:
         if self._deck:
             card = self._deck.pop()
         else:
-            # Deck vide : pioche aléatoire
+            
             card = (self._rng.randint(self.C), self._rng.randint(self.R))
         self._hands[agent_idx][pos] = card
-        # Réinitialise les indices connus pour cette position
+        
         self._hints_color[agent_idx][pos] = -1
         self._hints_rank[agent_idx][pos]  = -1
 
@@ -295,9 +295,9 @@ class HanabiEnvSimple:
     def close(self): pass
 
 
-# ══════════════════════════════════════════════════════════════
-# 2. WRAPPER UNIFIÉ (HLE ou simplifié)
-# ══════════════════════════════════════════════════════════════
+# ═════════════
+# 2. WRAPPER 
+# ═════════════
 
 class HanabiWrapper:
 
@@ -401,7 +401,7 @@ class HanabiWrapper:
 
 
 # ══════════════════════════════════════════════════════════════
-# 3. BASELINES CORRIGÉES
+# 3. BASELINES 
 # ══════════════════════════════════════════════════════════════
 
 class MLP(nn.Module):
@@ -528,7 +528,6 @@ class HanabiBaselineTrainer:
                 ratio * adv_e,
                 torch.clamp(ratio, 1-self.clip_eps, 1+self.clip_eps) * adv_e)
 
-            # [FIX] vals is numpy → convert to tensor before operation
             vals_t    = torch.FloatTensor(vals).to(self.device)  # [T]
             vals_e    = vals_t.unsqueeze(1).expand(T, N)          # [T, N]
             v_clipped = vals_e + torch.clamp(v_new - vals_e, -0.5, 0.5)
@@ -542,7 +541,7 @@ class HanabiBaselineTrainer:
 
             self.optim.zero_grad()
             loss.backward()
-            # [FIX-4] Clipping gradient
+            #  Clipping gradient
             nn.utils.clip_grad_norm_(
                 list(self.actor.parameters()) +
                 list(self.critic.parameters()), max_norm=0.5)
@@ -624,9 +623,9 @@ def train_one(algo: str, variant: str, total_steps: int, seed: int,
 
     # Config H3C Hanabi : LR ultra-réduit + clipping très agressif
     # Série d'explosions NaN à step 410K-440K avec config précédente
-    # → lr_actor 5e-5→1e-5, lr_critic 1e-4→3e-5, max_grad_norm 0.1→0.05
-    # → clip_epsilon 0.1→0.05 (PPO ratio more conservative)
-    # → n_epochs 4→2 (moins d'updates par batch = gradients plus petits)
+    #  lr_actor 5e-5→1e-5, lr_critic 1e-4→3e-5, max_grad_norm 0.1→0.05
+    #  clip_epsilon 0.1→0.05 (PPO ratio more conservative)
+    #  n_epochs 4→2 (moins d'updates par batch = gradients plus petits)
     if algo == 'H3C':
         cfg = {**cfg,
                'lr_actor':      1e-4,   # 3e-5 too small for bad initialisations (seed=123)
@@ -728,7 +727,7 @@ def train_one(algo: str, variant: str, total_steps: int, seed: int,
 
         print(f"\n  [RECOVERY #{recovery_count}] step={step:,} | reason={reason}")
 
-        # 1. Restaurer le meilleur checkpoint
+        # 1. Recovery the best checkpoint
         if best_state is not None:
             restore_best_state(trainer, best_state)
             print(f"    ← Restored checkpoint from step {best_state_step:,} "
@@ -736,7 +735,7 @@ def train_one(algo: str, variant: str, total_steps: int, seed: int,
         else:
             print("    ← No checkpoint yet — continuing from current state")
 
-        # 2. Réduire le LR progressivement
+        # 2. Reduce LR gradually
         lr_factor = max(0.05, lr_factor * 0.5)
         new_lr_a = BASE_LR_ACTOR  * lr_factor
         new_lr_c = BASE_LR_CRITIC * lr_factor
@@ -751,7 +750,7 @@ def train_one(algo: str, variant: str, total_steps: int, seed: int,
                 opt.state.clear()
         print("    Optimizer momentum reset")
 
-        # 4. Augmenter légèrement l'entropie pour ré-explorer
+       
         if hasattr(trainer, 'entropy_coef'):
             trainer.entropy_coef = min(0.12,
                                        trainer.entropy_coef * 1.5)
