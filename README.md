@@ -4,7 +4,7 @@
 
 Basile BETE MBEZELE · Ghislain ALO'O ABESSOLO  
 University of Yaoundé I — Department of Computer Science, Cameroon  
-*Submitted to Complex & Intelligent Systems (Springer), 2026*
+* Complex & Intelligent Systems (Springer), 2026*
 
 ---
 
@@ -157,8 +157,7 @@ python trainF.py --algo H3C --env simple_spread \
   author    = {Bete Mbezele, Basile and Alo'o Abessolo, Ghislain},
   journal   = {Complex \& Intelligent Systems},
   publisher = {Springer},
-  year      = {2026},
-  note      = {Under review}
+  year      = {2026}
 }
 ```
 
@@ -172,6 +171,6 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 ## Contact
 
-**Basile BETE MBEZELE** — mbezelebetebasile@gmail.com  
-**Ghislain ALO'O ABESSOLO**  
+**Basile BETE MBEZELE** — mbezelebetebasile@gmail.com  / basile.mbezele@facsciences-uy1.cm
+**Ghislain ALO'O ABESSOLO** — ghislainabess@gmail.com   
 University of Yaoundé I, Department of Computer Science, Cameroon
