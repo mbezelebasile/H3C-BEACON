@@ -1,6 +1,6 @@
 # H3C-BEACON
 
-**Hierarchical Hybrid Heterogeneous Control with Bayesian-Elites Adaptive Coalition Network**
+**Hierarchical Hybrid Heterogeneous Control with Bayesian-Elite Adaptive Coalition Network**
 
 Basile BETE MBEZELE · Ghislain ALO'O ABESSOLO  
 University of Yaoundé I — Department of Computer Science, Cameroon  
@@ -172,5 +172,7 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 ## Contact
 
 **Basile BETE MBEZELE** : mbezelebetebasile@gmail.com  / basile.mbezele@facsciences-uy1.cm
+
 **Ghislain ALO'O ABESSOLO** : ghislainabess@gmail.com   
+
 University of Yaoundé I, Department of Computer Science, Cameroon
