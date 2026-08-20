@@ -4,7 +4,7 @@
 
 Basile BETE MBEZELE · Ghislain ALO'O ABESSOLO  
 University of Yaoundé I — Department of Computer Science, Cameroon  
-* Complex & Intelligent Systems (Springer), 2026*
+* Complex & Intelligent Systems (Springer), 2026 *
 
 ---
 
