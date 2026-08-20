@@ -171,6 +171,6 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 ## Contact
 
-**Basile BETE MBEZELE** — mbezelebetebasile@gmail.com  / basile.mbezele@facsciences-uy1.cm
-**Ghislain ALO'O ABESSOLO** — ghislainabess@gmail.com   
+**Basile BETE MBEZELE** : mbezelebetebasile@gmail.com  / basile.mbezele@facsciences-uy1.cm
+**Ghislain ALO'O ABESSOLO** : ghislainabess@gmail.com   
 University of Yaoundé I, Department of Computer Science, Cameroon
