@@ -61,7 +61,7 @@ All results are reported over **5 independent seeds** with **95% confidence inte
 | MAPPO | 102,384 ± 28,644 | 14.48 ± 4.67 |
 | H3C-BEACON | 351,470 ± 242,024 | 10.65 ± 1.18 |
 
-MAPPO converges **3.4× faster** on this map. This is a known structural boundary of H3C-BEACON: homogeneous unit compositions (3 Stalkers + 5 Zealots vs 3 Stalkers + 5 Zealots) provide no role diversity for coalition formation to exploit. H3C-BEACON achieves its first training victory on all 5 seeds.
+MAPPO converges **3.4× faster** on this map. This result highlights a structural limitation of H3C-BEACON: the homogeneous unit composition of 3s5z (3 Stalkers + 5 Zealots) provides limited role diversity for the coalition formation mechanism to exploit. Nevertheless, H3C-BEACON achieves its first training victory on all 5 seeds.
 
 ---
 
