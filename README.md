@@ -157,6 +157,7 @@ python trainF.py --algo H3C --env simple_spread \
   author    = {Bete Mbezele, Basile and Alo'o Abessolo, Ghislain},
   journal   = {Complex \& Intelligent Systems},
   publisher = {Springer},
+  doi = {xxxxxxxxxxxxx},
   year      = {2026}
 }
 ```
